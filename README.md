@@ -19,6 +19,9 @@ helm install circuitverse .
 
 ## Demo
 
+https://github.com/VaibhavUpreti/circuitverse-charts/assets/85568177/f7048ca5-4eb6-4cf2-a70c-b24b872608a5
+
+
 ## Configuration
 
 Refer to [Config.md]
