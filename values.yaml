@@ -1,0 +1,302 @@
+# Default values for circuitverse.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/vaibhavupreti/circuitverse 
+  # https://github.com/vaibhavupreti/circuitverse/pkgs/container/circuitverse
+  #
+  # alternatively, use `latest` for the latest release or `edge` for the image
+  # built from the most recent commit
+  #
+  tag: latest
+  # tag: ""
+  # use `Always` when using `latest` tag
+  pullPolicy: IfNotPresent
+
+autoscaling:
+  apiVersion: autoscaling/v2
+
+# puma webserver
+web:
+  hpa:
+     # set this to true to enable horizontal pod autoscaling
+     # uncomment values.resources section if hpa is enabled
+    enabled: true 
+    cputhreshold: 85
+    minpods: 2
+    maxpods: 10
+  replicaCount: 1
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 500m
+    #   memory: 512Mi
+    # requests:
+    #   cpu: 250m
+    #   memory: 256Mi
+
+# sidekiq worker for background jobs
+sidekiq:
+  hpa:
+    # set this to true to enable horizontal pod autoscaling
+    # uncomment values.resources section if hpa is enabled
+    enabled: true 
+    cputhreshold: 85
+    minpods: 1
+    maxpods: 10
+  replicaCount: 1
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 500m
+    #   memory: 512Mi
+    # requests:
+    #   cpu: 250m
+    #   memory: 256Mi
+
+# Used to create verilog circuits in CircuitVerse
+# default: enabled
+yosys2digitaljs:
+  enabled: true
+  replicas: 1
+  nameOverride: circuitverse-yosys2digitaljs-server
+  port: 3040
+  image:
+    repository: ghcr.io/circuitverse/yosys2digitaljs-server
+    tag: master 
+
+services:
+  name: circuitverse
+  internalPort: 3000
+  targetPort: 3000
+  type: LoadBalancer
+  annotations: {}
+    # For example
+    #  service.beta.kubernetes.io/aws-load-balancer-type: external
+    #  service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    #  service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+  
+service:
+  type: ClusterIP
+  port: 80
+
+
+# Enable ingress and add domain name
+ingress:
+  enabled: false 
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: circuitverse 
+              port:
+                number: 3000 
+  tls: []
+    # - secretName: circuitverse-tls
+    #  hosts:
+    #   - circuitverse.local
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+#autoscaling:
+#  enabled: false
+#  minReplicas: 1
+#  maxReplicas: 100
+#  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+
+postgresql:
+  enabled: true
+  nameOverride: circuitverse-postgresql
+  auth:
+    username: postgres
+    postgresPassword: postgres
+    database: circuitverse_production
+    # when existingSecret is defined auth.password, auth.PostgressPassword
+    # is ignored.
+    # existingSecret: secret-name
+    # secretKeys:
+    #   adminPasswordKey: postgres-password
+    #   replicationPasswordKey: replication-password
+  # The following variables are only used when internal PG is disabled
+  # postgresqlHost: postgres
+  # postgresqlPort: 5432
+
+redis:
+  enabled: true
+  nameOverride: circuitverse-redis
+  # usePassword: false
+
+  auth:
+    enabled: false
+  # Enable AOF persistence
+  #configmap: |-
+  #  appendonly yes
+    # auth:
+    #  password: redis
+    # when defined the password field is ignored
+    #    existingSecret: secret-name
+    #    existingSecretPasswordKey: ""
+  # The following variables are only used when internal Redis is disabled
+  # host: redis
+  # Just omit the password field if your redis cluster doesn't use password
+  # password: redis
+  # port: 6379
+  # Enable AOF persistence
+  master:
+    persistence:
+      enabled: true
+      # If change pvc size redis.master.persistence.size: 20Gi
+  replica:
+    persistence:
+      enabled: true
+    replicaCount: 1
+
+# Provide affinity for hooks if needed
+hooks:
+  affinity: {}
+  migrate:
+    env: []
+    resources:
+      limits:
+        memory: 1000Mi
+      requests:
+        memory: 1000Mi
+    # Defaults to performing the DB migration job after the install/upgrade.
+    # Can be overridden to "pre-install,pre-upgrade" with caution to perform migrations that are sometimes required for the deployment to become healthy
+    hookAnnotation: "post-install,post-upgrade"
+
+
+# ENVIRONMENT VARIABLES
+
+# If set, will apply environment variables found in this secret, after the variables defined in the env key.
+existingEnvSecret: ""
+
+env:
+  ACTIVE_STORAGE_SERVICE: "local"
+  AWS_REGION: "us-west-2"
+  AWS_S3_REGION: "us-west-2"
+  AWS_S3_BUCKET_NAME: "circuitverse-development"
+  AWS_S3_ACCESS_KEY_ID: ""
+  AWS_S3_SECRET_ACCESS_KEY: ""
+  AWS_REGION_SES: "us-west-2"
+  AWS_ACCESS_KEY_ID_SES: "234"
+  AWS_SECRET_ACCESS_KEY_SES: "234"
+  BUGSNAG_API_KEY: "23423"
+  CIRCUITVERSE_EMAIL_ID: "support@circuitverse.org"
+  RAILS_MASTER_KEY: ""
+  RECAPTCHA_SITE_KEY: ""
+  RECAPTCHA_SECRET_KEY: ""
+  # make this static and remove name over ride
+  YOSYS_PATH: "http://circuitverse-yosys2digitaljs:3040"
+  INSTALLATION_ENV: helm
+  RAILS_ENV: "production" 
+  NODE_ENV: "production"
+  RAILS_LOG_TO_STDOUT: true
+  REDIS_TLS: false
+  SECRET_KEY_BASE: "super-secret-key" 
+
+  # send error logs over slack hooks
+  SLACK_CLIENT_ID: ""
+  SLACK_CLIENT_SECRET: ""
+
+  # these must be set manually; autogenerated keys are rotated on each upgrade
+  VAPID_PUBLIC_KEY: |
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArxPBLB//yQ+4C7kOHTBl
+    saGUJaWmRLC1wxCWGfh5x2nac17QKSTR8TP1NDOVQrm49gunvMmjPq62KZNtK0f7
+    WBOjX/QvZJPdbAyqjysMH/GVcCLjX6adImZZ189IGMXDh396Tyu6B2CMcb11MPds
+    q87q+2Zt1fibZeXAhreLzS4CoU4YKI9snov3FuMeXykKp/adCDfSfAjTw5yo0l+r
+    4nKF3DXsU6P6SU5VUfiOieLK/cMjC68Rzo/7AIxGErZjNaehjZXl16iWYXmRyKOX
+    iezTciSZvH2AgwZqcY9Uqvj1bnek596wLSCiFVBXMbWY6fv2ejktGUXCGWEHV1ap
+    PQIDAQAB
+    -----END PUBLIC KEY-----
+  VAPID_PRIVATE_KEY: |
+    -----BEGIN PRIVATE KEY-----
+    MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCvE8EsH//JD7gL
+    uQ4dMGWxoZQlpaZEsLXDEJYZ+HnHadpzXtApJNHxM/U0M5VCubj2C6e8yaM+rrYp
+    k20rR/tYE6Nf9C9kk91sDKqPKwwf8ZVwIuNfpp0iZlnXz0gYxcOHf3pPK7oHYIxx
+    vXUw92yrzur7Zm3V+Jtl5cCGt4vNLgKhThgoj2yei/cW4x5fKQqn9p0IN9J8CNPD
+    nKjSX6vicoXcNexTo/pJTlVR+I6J4sr9wyMLrxHOj/sAjEYStmM1p6GNleXXqJZh
+    eZHIo5eJ7NNyJJm8fYCDBmpxj1Sq+PVud6Tn3rAtIKIVUFcxtZjp+/Z6OS0ZRcIZ
+    YQdXVqk9AgMBAAECggEAAd+4gWlLRPmfRlv9Y0qFgCEeXJGCXNTtOkLgJrPL5QhE
+    aKE3j2CbQ16Mdt53MA73xHNHIQRqxlqETSAe32fmgnwULtVrFAOfAcZhXEEBYOVv
+    mhL7zvhkGmLn2cXPTkclCs18LVUdlwONgLTev0fj1CEVz0mxfA2RC/P7xJenss6a
+    VsPcvz1OF6QN9oItxR6okKt8asNIdyILP2msawYBwIFZAzc+KZI2jFgLIIeV+tT1
+    CyColo14Q2R2g/59bFR41KQMF7LN6ez4hS5QRuSwsWVy+JorPZ9YCqlDkBAiKLQO
+    USS95xPcpTP4x84x+o6VZlW82NDIJ8Ciwq8/iS1ggQKBgQDZjt0ckIU806bc9CTf
+    A6IqCSqZ3Hfk5oVjSsOAKk2U2uFsFqEztLWJbmCzYaH9QrXgteaWozMYop3A49CV
+    gXrA4hvDQRZMcU5k8yU0XNygL38K/X/wFQvO8OwCDd8nelEruZfwyng3LZfQZ8Ot
+    4aFfNiRxXBPn9NQNq6nWLy7SvQKBgQDOA0mg+9kO0sdszNY036BHP0dILFC686DV
+    2lumwNzS7DYT+X5E3nPGFuqKhCTM5jnMkko3OCVxYcxU7PzdF4VfroC3pESDsUme
+    37hxKDid702Sh0hmhvIVW1pwqflR/gtYz9HU5WABMUFfduTWMBwqdNnJZXJMY8Yz
+    AHLg+RvYgQKBgDRSEEj7VJ+hQwLmUCu2AvzbAXzJMahB7BhJ9aRQCCJhVU8aTiBS
+    OEpZ2jWpqDxxG65z8IWPsA0fppKp9xLNdckHV6fockVmBnVuqCbkokZ/xazN9EO3
+    vARDmm6QCXfECdtbIfhNqQWUGGuNWNjrZ1Svf6one74P+iNjgk+5Pyh9AoGBAMyr
+    q3zKeS0m74YCQ1YoTf46ucDUdigmX0XXOHME7N6IWnmhx3b4YqEMp1uSSVVf7VB2
+    jlEp8NkiRnShNd8ZvSIAJlVMV91WR0QWFBIn2Yfe9Xx79swViXD6X3HLDK4O7IsB
+    fQA8GhNVMhN79YFuLq1nhe92YAXQolqNOZSVKLsBAoGBAJFgavyjqnI1UhfVQjm2
+    ZpsXDEB531adyR5QkXJnLaVdrf8ftZ5KogZcpr3vlIv0jFlz6Mmb0gIENvC37JD9
+    hcQ/BwVPy+pTb1+iUM/Bk317kVvSFcQByB43M023l7kM5WGoNpMgyASFhAbSf8Ri
+    J+wCF2KyYBYpiQrCHc1kHWC6
+    -----END PRIVATE KEY-----

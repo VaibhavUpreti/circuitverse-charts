@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: circuitverse-yosys2digitaljs
+spec:
+  replicas: {{ int .Values.yosys2digitaljs.replicas }} 
+  selector:
+    matchLabels:
+      app: circuitverse-yosys2digitaljs
+  template:
+    metadata:
+      labels:
+        app: circuitverse-yosys2digitaljs
+    spec:
+      containers:
+        - name: yosys2digitaljs
+          image: "{{ .Values.yosys2digitaljs.image.repository }}:{{ .Values.yosys2digitaljs.image.tag }}"
+          ports:
+            - containerPort: 3040

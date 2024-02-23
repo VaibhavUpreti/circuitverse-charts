@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "circuitverse.fullname" . }}-web
+  creationTimestamp: null
+  labels:
+    app: {{ template "circuitverse.fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  replicas: {{ int .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "circuitverse.fullname" . }}
+      release: "{{ .Release.Name }}"
+      role: web
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: {{ template "circuitverse.fullname" . }}
+        release: "{{ .Release.Name }}"
+        role: web
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/env-secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector: {{- include "common.tplvalues.render" (dict "value" .Values.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      containers:
+        - args:
+            - ./bin/rails 
+            - server
+            - -b
+            - 0.0.0.0
+            - -p
+            - {{ .Values.services.internalPort | quote}}
+          command:
+            - ./bin/docker-entrypoint
+          env:
+            - name: POSTGRES_URL
+              value: "postgresql://postgres:postgres@circuitverse-circuitverse-postgresql.default.svc.cluster.local:5432/circuitverse_production"
+            - name: REDIS_URL
+              value: "redis://circuitverse-circuitverse-redis-master.default.svc.cluster.local:6379/0"    
+          envFrom:
+            - secretRef:
+                name: {{ template "circuitverse.fullname" . }}-env
+          {{- if .Values.existingEnvSecret }}
+            - secretRef:
+                name: {{ .Values.existingEnvSecret }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          name: {{ .Chart.Name }}-web
+          ports:
+            - containerPort: {{ int .Values.services.internalPort }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.web.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: storage 
+              mountPath: /usr/src/app/storage
+            - name: cache
+              mountPath: /usr/src/app/tmp
+          readinessProbe:
+            httpGet:
+              path: /up
+              port: {{ .Values.services.internalPort }}
+            periodSeconds: 10
+      serviceAccountName: {{ include "circuitverse.serviceAccountName" . }}
+      {{- if .Values.securityContext }}
+      securityContext: {{ .Values.securityContext | toYaml | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: storage
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}

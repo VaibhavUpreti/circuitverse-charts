@@ -1,0 +1,39 @@
+apiVersion: v2
+name: circuitverse
+description: CircuitVerse is an open source platform that allows users to construct digital logic circuits online.
+
+type: application
+keywords:
+  - circuitverse 
+  - rails
+maintainers:
+  - name: vaibhavupreti 
+    email: vaibhav.upreti16@gmail.com
+home: https://github.com/circuitverse/circuitverse
+icon: https://raw.githubusercontent.com/CircuitVerse/CircuitVerse/master/app/assets/images/CircuitVerse.png 
+sources:
+  - https://github.com/circuitverse/circuitverse
+  - https://circuitverse/infra
+  - https://circuitverse.org
+
+# Chart version
+# This is the chart version. This version number should be incremented each time you make changes
+# to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
+version: 0.1.0
+
+# CircuitVerse version
+# This is the version number of the application being deployed. This version number should be
+# incremented each time you make changes to the application. Versions are not expected to
+# follow Semantic Versioning. They should reflect the version the application is using.
+appVersion: "1.16.0"
+
+dependencies:
+  - condition: postgresql.enabled
+    name: postgresql
+    repository: https://charts.bitnami.com/bitnami
+    version: 12.11.2 
+  - condition: redis.enabled
+    name: redis
+    repository: https://charts.bitnami.com/bitnami
+    version: 16.12.2

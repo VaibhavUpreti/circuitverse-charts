@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "circuitverse.fullname" . }}-sidekiq
+  creationTimestamp: null
+  labels:
+    app: {{ template "circuitverse.fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  replicas: {{ int .Values.sidekiq.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "circuitverse.fullname" . }}
+      release: "{{ .Release.Name }}"
+      role: sidekiq
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: {{ template "circuitverse.fullname" . }}
+        release: "{{ .Release.Name }}"
+        role: sidekiq 
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/env-secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector: {{- include "common.tplvalues.render" (dict "value" .Values.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      containers:
+        - args:
+            - bundle
+            - exec
+            - sidekiq
+            - -C
+            - config/sidekiq.yml
+          env:
+          {{- if .Values.postgresql.auth.existingSecret }}
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.postgresql.auth.existingSecret }}
+                key: {{ default "password" .Values.postgresql.auth.secretKeys.adminPasswordKey }}
+          {{- end }}
+          {{- if .Values.redis.existingSecret }}
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.redis.existingSecret }}
+                key: {{ default "password" .Values.redis.existingSecretKey }}
+          {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ template "circuitverse.fullname" . }}-env
+          {{- if .Values.existingEnvSecret }}
+            - secretRef:
+                name: {{ .Values.existingEnvSecret }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          name: {{ .Chart.Name }}-sidekiqs
+          {{- with .Values.sidekiq.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: cache
+              mountPath: /app/tmp
+      serviceAccountName: {{ include "circuitverse.serviceAccountName" . }}
+      {{- if .Values.securityContext }}
+      securityContext: {{ .Values.securityContext | toYaml | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: cache
+          emptyDir: {}
