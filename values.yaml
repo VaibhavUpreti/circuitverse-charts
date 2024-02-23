@@ -226,7 +226,6 @@ hooks:
     # Can be overridden to "pre-install,pre-upgrade" with caution to perform migrations that are sometimes required for the deployment to become healthy
     hookAnnotation: "post-install,post-upgrade"
 
-
 # ENVIRONMENT VARIABLES
 
 # If set, will apply environment variables found in this secret, after the variables defined in the env key.
